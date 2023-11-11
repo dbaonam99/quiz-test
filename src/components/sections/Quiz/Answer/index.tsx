@@ -4,12 +4,12 @@ import { memo } from 'react';
 
 interface AnswerComponentProps {
   data: AnswerProps;
-  selectedAnswer: AnswerProps | undefined;
+  selectedAnswer: AnswerProps[] | undefined;
   onClick: (answer: AnswerProps) => void;
 }
 
 const Answer = ({ data, selectedAnswer, onClick }: AnswerComponentProps) => {
-  const isSelected = data.id === selectedAnswer?.id;
+  const isSelected = selectedAnswer?.find((item) => item.id === data.id);
   let classes = 'flex items-center bg-white border rounded-lg w-full max-w-xl mt-2 cursor-pointer';
 
   if (isSelected) {

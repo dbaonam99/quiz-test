@@ -11,6 +11,7 @@ model Question {
   id       String  @id @map("_id") @db.ObjectId
   question String
   hint     String
+  order    Int
   answers  Answer[]
 }
 

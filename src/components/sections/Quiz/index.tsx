@@ -2,10 +2,11 @@
 import { gql, useQuery } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import Modal from '@/components/commons/Modal';
-import Header from './Header';
-import { AnswerProps, ModalProps, QuestionProps } from '@/types';
-import Answer from './Answer';
+import Modal, { ModalProps } from '@/components/commons/Modal';
+import Header from './Question/Header';
+import { AnswerProps, QuestionProps } from '@/types';
+import Loading from '@/components/commons/Loading';
+import Question from './Question';
 
 const QUERY = gql`
   query {
@@ -13,6 +14,7 @@ const QUERY = gql`
       id
       question
       hint
+      order
       answers {
         id
         answer
@@ -24,18 +26,17 @@ const QUERY = gql`
 
 const IntroPage = () => {
   const router = useRouter();
-  const { data, loading, error } = useQuery(QUERY);
+  const { data, loading } = useQuery(QUERY);
 
-  const [showHint, setShowHint] = useState(false);
   const [modal, setModal] = useState<ModalProps | null>();
-  const [selectedAnswer, setSelectedAnswer] = useState<AnswerProps>();
+  const [selectedAnswer, setSelectedAnswer] = useState<AnswerProps[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<QuestionProps>();
 
-  const handleAnswer = useCallback((answer: AnswerProps) => {
-    setSelectedAnswer(answer);
-  }, []);
+  const { answers = [] } = currentQuestion || {};
+  const correctAnswerLength = answers?.filter((answer: AnswerProps) => answer.isCorrect)?.length;
+  const isMultipleAnswer = correctAnswerLength > 1;
 
-  const handleOnBack = () => {
+  const handleOnBack = useCallback(() => {
     setModal({
       title: 'Do you want to end quiz?',
       content: 'Once you end this quiz, you will have to start from the first question again.',
@@ -44,15 +45,34 @@ const IntroPage = () => {
       onConfirm: () => router.push('/'),
       onCancel: () => setModal(null),
     });
-  };
+  }, []);
 
   const handleOnNext = () => {
-    setModal(null);
-
-    const currentIndex = data.questions.indexOf(currentQuestion);
-
-    setCurrentQuestion(data.questions[currentIndex + 1]);
+    setModal({
+      type: 'success',
+      content: 'Show Vani Barcode on the Home screen',
+      confirmText: 'Next',
+      onConfirm: () => {
+        setModal(null);
+        setSelectedAnswer([]);
+        setCurrentQuestion(data.questions[currentQuestion?.order || 0 + 1]);
+      },
+    });
   };
+
+  const handleAnswer = useCallback(
+    (answer: AnswerProps) => {
+      if (isMultipleAnswer) {
+        setSelectedAnswer((prev) => {
+          if (prev.find((item) => item.id === answer.id)) return prev;
+          return [...prev, answer];
+        });
+      } else {
+        setSelectedAnswer([answer]);
+      }
+    },
+    [isMultipleAnswer]
+  );
 
   useEffect(() => {
     if (!data) return;
@@ -61,52 +81,34 @@ const IntroPage = () => {
   }, [data]);
 
   useEffect(() => {
-    if (selectedAnswer?.isCorrect) {
-      const currentIndex = data.questions.indexOf(currentQuestion);
+    if (selectedAnswer?.length === 0) return;
 
-      if (currentIndex === data.questions?.length - 1) {
+    const correctCondition = isMultipleAnswer
+      ? selectedAnswer.filter((item) => item.isCorrect).length === correctAnswerLength
+      : selectedAnswer[0]?.isCorrect;
+
+    if (correctCondition) {
+      if (currentQuestion?.order === data.questions?.length) {
         router.push('/quiz-complete');
       } else {
-        setModal({
-          type: 'success',
-          content: 'Show Vani Barcode on the Home screen',
-          confirmText: 'Next',
-          onConfirm: handleOnNext,
-        });
+        handleOnNext();
       }
     }
-  }, [selectedAnswer]);
+  }, [selectedAnswer, isMultipleAnswer]);
 
   return (
     <main>
-      <Header onBack={handleOnBack} />
+      <Header
+        onBack={handleOnBack}
+        totalQuestion={data?.questions?.length}
+        currentQuestion={currentQuestion?.order || 0}
+      />
 
-      <div className="bg-orange-100 min-h-screen p-4">
-        <p className="text-purple-900 font-bold">Q1</p>
-        <p className="font-bold">{currentQuestion?.question}</p>
-
-        <div className="mt-10">
-          {currentQuestion?.answers?.map((answer: AnswerProps) => (
-            <Answer
-              key={answer.id}
-              data={answer}
-              onClick={handleAnswer}
-              selectedAnswer={selectedAnswer}
-            />
-          ))}
-        </div>
-
-        <div className="mt-10">
-          <span
-            className="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 cursor-pointer"
-            onClick={() => setShowHint((prev) => !prev)}
-          >
-            {showHint ? 'Hide hint' : 'Show hint'}
-          </span>
-
-          {showHint && <p className="mt-1 text-sm">{currentQuestion?.hint}</p>}
-        </div>
-      </div>
+      <Question
+        currentQuestion={currentQuestion}
+        handleAnswer={handleAnswer}
+        selectedAnswer={selectedAnswer}
+      />
 
       <Modal
         isOpen={!!modal}
@@ -118,6 +120,8 @@ const IntroPage = () => {
         cancelText={modal?.cancelText}
         confirmText={modal?.confirmText}
       />
+
+      {loading && <Loading />}
     </main>
   );
 };

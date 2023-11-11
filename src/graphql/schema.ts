@@ -4,6 +4,7 @@ export const typeDefs = `
     id: ID
     question: String  
     hint: String
+    order: Int
     answers: [Answer]
   }
 

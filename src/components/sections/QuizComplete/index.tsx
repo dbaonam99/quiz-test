@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import Firework from '@/public/complete.png';
+import Firework from '@/assets/complete.png';
 import { useRouter } from 'next/navigation';
 
 const QuizComplete = () => {
