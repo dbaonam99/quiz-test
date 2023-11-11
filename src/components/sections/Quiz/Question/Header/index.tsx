@@ -11,7 +11,7 @@ const Header = ({ onBack, currentQuestion, totalQuestion }: Props) => {
   const [width, setWidth] = useState('');
 
   useEffect(() => {
-    setWidth(((currentQuestion - 1) / totalQuestion) * 100 + '%');
+    setWidth((currentQuestion / totalQuestion) * 100 + '%');
   }, [currentQuestion, totalQuestion]);
 
   return (
