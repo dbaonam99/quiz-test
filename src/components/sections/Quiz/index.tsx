@@ -1,77 +1,99 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { gql, useQuery } from '@apollo/client';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Modal from '@/components/commons/Modal';
 import Header from './Header';
-import Icons from '@/components/commons/Icons';
+import { AnswerProps, ModalProps, QuestionProps } from '@/types';
+import Answer from './Answer';
 
-const AllLinksQuery = gql`
+const QUERY = gql`
   query {
     questions {
       id
-      content
+      question
+      hint
+      answers {
+        id
+        answer
+        isCorrect
+      }
     }
   }
 `;
 
-const answer = [
-  {
-    _id: '1',
-    value: 'zxc',
-  },
-  {
-    _id: '2',
-    value: 'zxc 2',
-  },
-  {
-    _id: '3',
-    value: 'zxc 3',
-  },
-];
-
 const IntroPage = () => {
   const router = useRouter();
+  const { data, loading, error } = useQuery(QUERY);
 
   const [showHint, setShowHint] = useState(false);
-  const [showBackModal, setShowBackModal] = useState(false);
-  const [selectedAnswer, setSelectedAnswer] = useState('');
+  const [modal, setModal] = useState<ModalProps | null>();
+  const [selectedAnswer, setSelectedAnswer] = useState<AnswerProps>();
+  const [currentQuestion, setCurrentQuestion] = useState<QuestionProps>();
 
-  const { data, loading, error } = useQuery(AllLinksQuery);
+  const handleAnswer = useCallback((answer: AnswerProps) => {
+    setSelectedAnswer(answer);
+  }, []);
 
-  const handleAnswer = (id: string) => {
-    setSelectedAnswer(id);
+  const handleOnBack = () => {
+    setModal({
+      title: 'Do you want to end quiz?',
+      content: 'Once you end this quiz, you will have to start from the first question again.',
+      cancelText: 'Cancel',
+      confirmText: 'End quiz',
+      onConfirm: () => router.push('/'),
+      onCancel: () => setModal(null),
+    });
   };
+
+  const handleOnNext = () => {
+    setModal(null);
+
+    const currentIndex = data.questions.indexOf(currentQuestion);
+
+    setCurrentQuestion(data.questions[currentIndex + 1]);
+  };
+
+  useEffect(() => {
+    if (!data) return;
+
+    setCurrentQuestion(data.questions[0]);
+  }, [data]);
+
+  useEffect(() => {
+    if (selectedAnswer?.isCorrect) {
+      const currentIndex = data.questions.indexOf(currentQuestion);
+
+      if (currentIndex === data.questions?.length - 1) {
+        router.push('/quiz-complete');
+      } else {
+        setModal({
+          type: 'success',
+          content: 'Show Vani Barcode on the Home screen',
+          confirmText: 'Next',
+          onConfirm: handleOnNext,
+        });
+      }
+    }
+  }, [selectedAnswer]);
 
   return (
     <main>
-      <Header onBack={() => setShowBackModal(true)} />
+      <Header onBack={handleOnBack} />
 
-      <div className="bg-orange-100 min-h-screen p-24">
+      <div className="bg-orange-100 min-h-screen p-4">
         <p className="text-purple-900 font-bold">Q1</p>
-        <p className="font-bold">How can you bal bla bal?</p>
+        <p className="font-bold">{currentQuestion?.question}</p>
 
         <div className="mt-10">
-          {answer?.map((answer) => {
-            const isSelected = answer._id === selectedAnswer;
-            const isCorrect = isSelected;
-
-            let resultClasses;
-            if (isCorrect) {
-              resultClasses = 'text-purple-700 border-purple-700';
-            }
-
-            return (
-              <div
-                key={answer._id}
-                className={`flex items-center bg-white border rounded-lg w-full max-w-xl mt-2 cursor-pointer ${resultClasses}`}
-                onClick={() => handleAnswer(answer._id)}
-              >
-                <p className="px-4 py-2">Answer</p>
-
-                {isCorrect ? <Icons.Check /> : <Icons.Close />}
-              </div>
-            );
-          })}
+          {currentQuestion?.answers?.map((answer: AnswerProps) => (
+            <Answer
+              key={answer.id}
+              data={answer}
+              onClick={handleAnswer}
+              selectedAnswer={selectedAnswer}
+            />
+          ))}
         </div>
 
         <div className="mt-10">
@@ -82,18 +104,19 @@ const IntroPage = () => {
             {showHint ? 'Hide hint' : 'Show hint'}
           </span>
 
-          {showHint && <p className="mt-1 text-sm">How can you bal bla bal?</p>}
+          {showHint && <p className="mt-1 text-sm">{currentQuestion?.hint}</p>}
         </div>
       </div>
 
       <Modal
-        isOpen={showBackModal}
-        onCancel={() => setShowBackModal(false)}
-        onConfirm={() => router.push('/')}
-        title="Do you want to end quiz?"
-        content="Once you end this quiz, you will have to start from the first question again."
-        cancelText="Cancel"
-        confirmText="End quiz"
+        isOpen={!!modal}
+        onCancel={modal?.onCancel}
+        onConfirm={modal?.onConfirm}
+        type={modal?.type}
+        title={modal?.title}
+        content={modal?.content}
+        cancelText={modal?.cancelText}
+        confirmText={modal?.confirmText}
       />
     </main>
   );

@@ -1,8 +1,5 @@
 import Icons from '@/components/commons/Icons';
-
-interface HeaderProps {
-  onBack: () => void;
-}
+import { HeaderProps } from '@/types';
 
 const Header = ({ onBack }: HeaderProps) => {
   return (
