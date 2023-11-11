@@ -97,7 +97,7 @@ const IntroPage = () => {
   }, [selectedAnswer, isMultipleAnswer]);
 
   return (
-    <main>
+    <main className="h-screen overflow-hidden">
       <Header
         onBack={handleOnBack}
         totalQuestion={data?.questions?.length}
